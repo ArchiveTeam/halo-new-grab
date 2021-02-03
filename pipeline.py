@@ -49,7 +49,7 @@ if not WGET_AT:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20210203.01'
+VERSION = '20210203.02'
 USER_AGENT = 'Archive Team'
 TRACKER_ID = 'halo-new'
 TRACKER_HOST = 'trackerproxy.archiveteam.org'
@@ -221,7 +221,7 @@ class WgetArgs(object):
 
         item_names = item['item_name'].split('\0')
 
-        for item_name in item_names:
+        for item_name in item_names[:]:
             wget_args.extend(['--warc-header', 'x-wget-at-project-item-name: '+item_name])
             wget_args.append('item-name://'+item_name)
             item_type, item_value = item_name.split(':', 1)
