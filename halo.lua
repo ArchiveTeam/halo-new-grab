@@ -5,6 +5,7 @@ local http = require("socket.http")
 JSON = (loadfile "JSON.lua")()
 
 local item_dir = os.getenv('item_dir')
+local item_name_newline = os.getenv('item_name_newline')
 local warc_file_base = os.getenv('warc_file_base')
 local item_type = nil
 local item_name = nil
@@ -15,7 +16,7 @@ local tries = 0
 local downloaded = {}
 local addedtolist = {}
 local abortgrab = false
-local exit_url = false
+local abortall = false
 
 local discovered = {}
 
@@ -102,7 +103,11 @@ allowed = function(url, parenturl)
 
   match = string.match(url, "/default%.aspx%?pxd=([^&]+)$")
   if match then
-    discovered["reach-pxd:" .. match] = true
+    if urlparse.unescape(match) == urlparse.unescape(item_value) then
+      return true
+    else
+      discovered["reach-pxd:" .. match] = true
+    end
   end
 
   return false
@@ -180,6 +185,12 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
 
   if allowed(url, nil) and status_code == 200 then
     html = read_file(file)
+    if string.match(html, "Error%s*:%s*Unknown Exception") then
+      io.stdout:write("Got unknown exception.\n")
+      io.stdout:flush()
+      abort_item()
+      abortall = true
+    end
     for newurl in string.gmatch(string.gsub(html, "&quot;", '"'), '([^"]+)') do
       checknewurl(newurl)
     end
@@ -227,9 +238,9 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
   if match then
     abortgrab = false
     ids[match] = true
-    item_value = match
     item_type = type_
-    item_name = type_ .. ":" .. match
+    item_value = match
+    item_name = type_ .. ":" .. item_value
     io.stdout:write("Archiving item " .. item_name .. ".\n")
     io.stdout:flush()
   end
@@ -245,6 +256,10 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
       tries = 0
       return wget.actions.EXIT
     end
+  end
+
+  if abortall then
+    return wget.actions.ABORT
   end
   
   if status_code >= 200 and status_code <= 399 then
@@ -327,6 +342,9 @@ end
 wget.callbacks.before_exit = function(exit_status, exit_status_string)
   if abortgrab then
     abort_item()
+  end
+  if abortall then
+    return wget.exits.IO_FAIL
   end
   return exit_status
 end

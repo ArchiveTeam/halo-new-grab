@@ -52,7 +52,7 @@ if not WGET_AT:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20210203.03'
+VERSION = '20210203.04'
 USER_AGENT = 'Archive Team'
 TRACKER_ID = 'halo-new'
 TRACKER_HOST = 'legacy-api.arpa.li'
@@ -296,6 +296,7 @@ pipeline = Pipeline(
         env={
             'item_dir': ItemValue('item_dir'),
             'warc_file_base': ItemValue('warc_file_base'),
+            'item_name_newline': ItemValue('item_name_newline')
         }
     ),
     SetBadUrls(),
