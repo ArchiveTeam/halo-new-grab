@@ -12,6 +12,12 @@ In most of the below cases, there will be a web interface running at http://loca
 
 **If anything goes wrong while running the commands below, please scroll down to the bottom of this page. There's troubleshooting information there.**
 
+Running with Docker
+-------------------------
+[Install Docker](https://docs.docker.com/get-docker/) and Run the folowing command:
+    
+    docker run --detach --name "at_halo" --restart always atdr.meo.ws/archiveteam/halo-new-grab:latest --concurrent 20 YOURNICKHERE
+    
 Running with a warrior
 -------------------------
 
