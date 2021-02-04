@@ -52,11 +52,11 @@ if not WGET_AT:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20210203.06'
+VERSION = '20210204.01'
 USER_AGENT = 'Archive Team'
 TRACKER_ID = 'halo-new'
 TRACKER_HOST = 'legacy-api.arpa.li'
-MULTI_ITEM_SIZE = 5
+MULTI_ITEM_SIZE = 30
 
 
 ###########################################################################
@@ -210,18 +210,6 @@ class WgetArgs(object):
             '--warc-dedup-url-agnostic',
         ]
 
-        def queue_range(start, end, url_prefix, header_prefix):
-            for i in range(start, end+1):
-                wget_args.extend(['--warc-header', header_prefix+': '+str(i)])
-                wget_args.append(url_prefix+str(i))
-
-        def process_sequential(s, url_prefix, header_prefix):
-            if '-' in s:
-                start, end = s.split('-')
-            else:
-                start, end = int(s), int(s)
-            queue_range(int(start), int(end), url_prefix, header_prefix)
-
         item_names = item['item_name'].split('\0')
 
         for item_name in item_names[:]:
@@ -229,20 +217,25 @@ class WgetArgs(object):
             wget_args.append('item-name://'+item_name)
             item_type, item_value = item_name.split(':', 1)
             if item_type == 'reach-file':
-                process_sequential(
-                    item_value,
-                    'http://halo.bungie.net/Stats/Reach/FileDetails.aspx?fid=',
-                    'halo-bungie-reach-file'
-                )
+                item_names.remove(item_name)
+#                process_sequential(
+#                    item_value,
+#                    'http://halo.bungie.net/Stats/Reach/FileDetails.aspx?fid=',
+#                    'halo-bungie-reach-file'
+#                )
             elif item_type == 'reach-guid':
                 wget_args.extend(['--warc-header', 'halo-bungie-reach-game-guid: '+item_value])
                 wget_args.append('http://halo.bungie.net/Stats/Reach/GameStats.aspx?guid='+item_value)
             elif item_type == 'reach-stats':
-                process_sequential(
-                    item_value,
-                    'http://halo.bungie.net/Stats/Reach/GameStats.aspx?gameid=',
-                    'halo-bungie-reach-game-stats'
-                )
+                item_names.remove(item_name)
+#                process_sequential(
+#                    item_value,
+#                    'http://halo.bungie.net/Stats/Reach/GameStats.aspx?gameid=',
+#                    'halo-bungie-reach-game-stats'
+#                )
+            elif item_type == 'rs':
+                wget_args.extend(['--warc-header', 'halo-bungie-reach-game-stats: '+item_value])
+                wget_args.append('http://halo.bungie.net/Stats/Reach/GameStats.aspx?gameid='+item_value)
             elif item_type in ('player', 'reach-player'):
                 item_names.remove(item_name)
             #    wget_args.extend(['--warc-header', 'halo-bungie-player: '+item_value])

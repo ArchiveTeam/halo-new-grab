@@ -16,11 +16,13 @@ local tries = 0
 local downloaded = {}
 local addedtolist = {}
 local abortgrab = false
-local abortall = false
 
 local discovered = {}
 
 local bad_items = {}
+
+local current_response_url = nil
+local current_response_body = nil
 
 if not urlparse or not http then
   io.stdout:write("socket not corrently installed.\n")
@@ -32,6 +34,11 @@ local ids = {}
 
 for ignore in io.open("ignore-list", "r"):lines() do
   downloaded[ignore] = true
+end
+
+reset_current_response = function()
+  current_response_url = nil
+  current_response_body = nil
 end
 
 abort_item = function(item)
@@ -184,12 +191,10 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
   end
 
   if allowed(url, nil) and status_code == 200 then
-    html = read_file(file)
-    if string.match(html, "Error%s*:%s*Unknown Exception") then
-      io.stdout:write("Got unknown exception.\n")
-      io.stdout:flush()
-      abort_item()
-      abortall = true
+    if current_response_url == url and current_response_body ~= nil then
+      html = current_response_body
+    else
+      html = read_file(file)
     end
     for newurl in string.gmatch(string.gsub(html, "&quot;", '"'), '([^"]+)') do
       checknewurl(newurl)
@@ -214,9 +219,7 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
   return urls
 end
 
-wget.callbacks.httploop_result = function(url, err, http_stat)
-  status_code = http_stat["statcode"]
-
+wget.callbacks.write_to_warc = function(url, http_stat)
   local match = string.match(url["url"], "^https?://halo%.bungie%.net/Stats/Reach/FileDetails%.aspx%?fid=([0-9]+)$")
   local type_ = "reach-file"
   if not match then
@@ -225,7 +228,7 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
   end
   if not match then
     match = string.match(url["url"], "^https?://halo%.bungie%.net/Stats/Reach/GameStats%.aspx%?gameid=([0-9]+)$")
-    type_ = "reach-stats"
+    type_ = "rs"
   end
   if not match then
     match = string.match(url["url"], "^https?://halo%.bungie%.net/Stats/Reach/default%.aspx%?player=([^&]+)$")
@@ -244,6 +247,21 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
     io.stdout:write("Archiving item " .. item_name .. ".\n")
     io.stdout:flush()
   end
+
+  reset_current_response()
+  current_response_url = url["url"]
+  current_response_body = read_file(http_stat["local_file"])
+  if string.match(current_response_body, "Error%s*:%s*Unknown Exception") or true then
+    io.stdout:write("Got unknown exception.\n")
+    io.stdout:flush()
+    abort_item()
+    return false
+  end
+  return true
+end
+
+wget.callbacks.httploop_result = function(url, err, http_stat)
+  status_code = http_stat["statcode"]
   
   url_count = url_count + 1
   io.stdout:write(url_count .. "=" .. status_code .. " " .. url["url"] .. "  \n")
@@ -257,10 +275,6 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
       return wget.actions.EXIT
     end
   end
-
-  if abortall then
-    return wget.actions.ABORT
-  end
   
   if status_code >= 200 and status_code <= 399 then
     downloaded[url["url"]] = true
@@ -270,6 +284,8 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
     abort_item()
     return wget.actions.EXIT
   end
+
+  reset_current_response()
 
   if status_code == 0
     or (status_code > 400 and status_code ~= 404) then
@@ -342,9 +358,6 @@ end
 wget.callbacks.before_exit = function(exit_status, exit_status_string)
   if abortgrab then
     abort_item()
-  end
-  if abortall then
-    return wget.exits.IO_FAIL
   end
   return exit_status
 end
