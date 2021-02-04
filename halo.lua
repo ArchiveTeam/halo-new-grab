@@ -219,26 +219,26 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
   return urls
 end
 
-wget.callbacks.write_to_warc = function(url, http_stat)
-  local match = string.match(url["url"], "^https?://halo%.bungie%.net/Stats/Reach/FileDetails%.aspx%?fid=([0-9]+)$")
+check_for_item = function(url)
+  local match = string.match(url, "^https?://halo%.bungie%.net/Stats/Reach/FileDetails%.aspx%?fid=([0-9]+)$")
   local type_ = "reach-file"
   if not match then
-    match = string.match(url["url"], "^https?://halo%.bungie%.net/Stats/Reach/GameStats%.aspx%?guid=([0-9]+)$")
+    match = string.match(url, "^https?://halo%.bungie%.net/Stats/Reach/GameStats%.aspx%?guid=([0-9]+)$")
     type_ = "reach-guid"
   end
   if not match then
-    match = string.match(url["url"], "^https?://halo%.bungie%.net/Stats/Reach/GameStats%.aspx%?gameid=([0-9]+)$")
+    match = string.match(url, "^https?://halo%.bungie%.net/Stats/Reach/GameStats%.aspx%?gameid=([0-9]+)$")
     type_ = "rs"
   end
   if not match then
-    match = string.match(url["url"], "^https?://halo%.bungie%.net/Stats/Reach/default%.aspx%?player=([^&]+)$")
+    match = string.match(url, "^https?://halo%.bungie%.net/Stats/Reach/default%.aspx%?player=([^&]+)$")
     type_ = "reach-player"
   end
   if not match then
-    match = string.match(url["url"], "^https?://halo%.bungie%.net/Stats/Reach/default%.aspx%?pxd=([^&]+)$")
+    match = string.match(url, "^https?://halo%.bungie%.net/Stats/Reach/default%.aspx%?pxd=([^&]+)$")
     type_ = "reach-pxd"
   end
-  if match then
+  if match and not ids[match] then
     abortgrab = false
     ids[match] = true
     item_type = type_
@@ -247,7 +247,10 @@ wget.callbacks.write_to_warc = function(url, http_stat)
     io.stdout:write("Archiving item " .. item_name .. ".\n")
     io.stdout:flush()
   end
+end
 
+wget.callbacks.write_to_warc = function(url, http_stat)
+  check_for_item(url["url"])
   reset_current_response()
   current_response_url = url["url"]
   current_response_body = read_file(http_stat["local_file"])
@@ -262,6 +265,8 @@ end
 
 wget.callbacks.httploop_result = function(url, err, http_stat)
   status_code = http_stat["statcode"]
+
+  check_for_item(url["url"])
   
   url_count = url_count + 1
   io.stdout:write(url_count .. "=" .. status_code .. " " .. url["url"] .. "  \n")
