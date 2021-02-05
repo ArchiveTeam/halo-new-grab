@@ -254,7 +254,8 @@ wget.callbacks.write_to_warc = function(url, http_stat)
   reset_current_response()
   current_response_url = url["url"]
   current_response_body = read_file(http_stat["local_file"])
-  if string.match(current_response_body, "Error%s*:%s*Unknown Exception") then
+  if string.match(current_response_body, "Error%s*:%s*Unknown Exception")
+    or string.match(current_response_body, "error loading stats") then
     io.stdout:write("Got unknown exception.\n")
     io.stdout:flush()
     abort_item()
